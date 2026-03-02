@@ -1,12 +1,22 @@
-# Python cache
+# ---- Python bytecode ----
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 
-# Virtual environment
+# ---- Virtual environments ----
+.env
+.venv
+env/
 venv/
-.env/
+ENV/
+env.bak/
+venv.bak/
+
+# ---- SQLite databases (local only) ----
+*.sqlite
+*.sqlite3
+*.db
 
 # IDE
 .idea/

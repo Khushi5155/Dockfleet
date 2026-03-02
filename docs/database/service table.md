@@ -10,6 +10,11 @@ Table: services
   - constraints: UNIQUE, NOT NULL
   - desc: Service name from dockfleet.yaml (e.g., "api", "redis").
 
+- image
+  - type: TEXT
+  - constraints: NOT NULL
+  - desc: Docker image for this service (e.g., "my-api:latest", "redis:7").
+
 - status
   - type: TEXT
   - constraints: NOT NULL
