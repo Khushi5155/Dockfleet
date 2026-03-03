@@ -1,6 +1,7 @@
 import json
 from .models import Service
 from dockfleet.cli.config import DockFleetConfig, ServiceConfig, HealthCheckConfig, RestartPolicy
+from sqlmodel import Session, select
 
 
 def services_from_config(config: DockFleetConfig) -> list[Service]:
@@ -51,3 +52,22 @@ def services_from_config(config: DockFleetConfig) -> list[Service]:
         services.append(service)
 
     return services
+
+
+def seed_services(config: DockFleetConfig, session: Session) -> None:
+    services = services_from_config(config)
+
+    for svc in services:
+        # Check if a service with this name already exists
+        existing = session.exec(
+            select(Service).where(Service.name == svc.name)
+        ).one_or_none()
+
+        if existing is not None:
+            # Already present -> skip
+            continue
+
+        # Not present -> add new row
+        session.add(svc)
+
+    session.commit()
