@@ -1,0 +1,14 @@
+services:
+  api:
+    image: my-api:latest
+    ports:
+      - "8000:8000"
+    healthcheck:
+      type: http
+      endpoint: "http://localhost:8000/health"
+      interval: 30
+    restart: always
+
+  redis:
+    image: redis:7
+    restart: always
