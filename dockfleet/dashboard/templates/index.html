@@ -4,56 +4,126 @@
     <meta charset="UTF-8">
     <title>DockFleet Dashboard</title>
 
-    <!-- Tailwind CSS CDN -->
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Alpine JS -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
+
+    <!-- Alpine -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
 <body 
-    class="bg-gray-100 dark:bg-gray-900 text-black dark:text-white min-h-screen"
+    class="bg-gradient-to-br from-gray-100 to-gray-200 
+           dark:from-gray-900 dark:to-gray-950
+           text-gray-800 dark:text-gray-100 
+           min-h-screen transition-colors duration-500"
     x-data="dashboard()"
     x-init="fetchServices()"
 >
 
-<div class="container mx-auto px-6 py-8">
+<div class="max-w-7xl mx-auto px-6 py-10">
 
     <!-- Header -->
-    <div class="flex justify-between items-center mb-8">
-        <h1 class="text-3xl font-bold">DockFleet Dashboard</h1>
+    <div class="flex justify-between items-center mb-10">
+        <div>
+            <h1 class="text-4xl font-bold tracking-tight">DockFleet</h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">
+                Service Monitoring Dashboard
+            </p>
+        </div>
+
+        <button 
+            @click="toggleDarkMode()" 
+            class="px-4 py-2 rounded-xl 
+                   bg-gray-800 text-white 
+                   dark:bg-gray-700
+                   hover:scale-105 transition">
+            Toggle Theme
+        </button>
     </div>
 
     <!-- Services Grid -->
-    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 
         <template x-for="service in services" :key="service.name">
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg transition">
+            <div class="group 
+                        bg-white/70 dark:bg-gray-800/70 
+                        backdrop-blur-xl
+                        border border-gray-200 dark:border-gray-700
+                        rounded-3xl p-6 shadow-xl
+                        hover:shadow-2xl
+                        transition-all duration-300">
 
-                <!-- Service Name -->
-                <h2 class="text-xl font-semibold mb-4" x-text="service.name"></h2>
+                <!-- Service Header -->
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold capitalize" 
+                        x-text="service.name"></h2>
 
-                <!-- Metrics -->
-                <div class="space-y-1 text-sm">
-                    <p>Status: <span class="font-medium" x-text="service.status"></span></p>
-                    <p>CPU: <span x-text="service.cpu"></span></p>
-                    <p>Memory: <span x-text="service.memory"></span></p>
-                    <p>Uptime: <span x-text="service.uptime"></span></p>
-                    <p>Restarts: <span x-text="service.restart_count"></span></p>
-                    <p>Health: <span x-text="service.health_status"></span></p>
+                    <!-- Status Badge -->
+                    <span 
+                        :class="service.status === 'running' 
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' 
+                            : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'"
+                        class="px-3 py-1 text-xs font-medium rounded-full">
+                        <span x-text="service.status"></span>
+                    </span>
                 </div>
 
-                <!-- Action Buttons -->
-                <div class="mt-5 flex gap-3">
+                <!-- CPU Progress -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span>CPU Usage</span>
+                        <span x-text="service.cpu"></span>
+                    </div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div 
+                            class="bg-blue-500 h-2 rounded-full transition-all"
+                            :style="'width:' + service.cpu">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Metrics -->
+                <div class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                    <p><strong>Memory:</strong> <span x-text="service.memory"></span></p>
+                    <p><strong>Uptime:</strong> <span x-text="service.uptime"></span></p>
+                    <p><strong>Restarts:</strong> <span x-text="service.restart_count"></span></p>
+
+                    <!-- Health -->
+                    <p>
+                        <strong>Health:</strong> 
+                        <span 
+                            :class="service.health_status === 'healthy' 
+                                ? 'text-green-500' 
+                                : 'text-red-500'"
+                            class="font-medium"
+                            x-text="service.health_status">
+                        </span>
+                    </p>
+                </div>
+
+                <!-- Buttons -->
+                <div class="mt-6 flex gap-3">
                     <button 
                         @click="restartService(service.name)"
-                        class="bg-yellow-500 text-black px-3 py-1 rounded-lg hover:bg-yellow-400 transition">
+                        class="flex-1 py-2 rounded-xl 
+                               bg-yellow-400 hover:bg-yellow-300 
+                               text-black font-medium 
+                               transition transform hover:scale-105">
                         Restart
                     </button>
 
                     <button 
                         @click="stopService(service.name)"
-                        class="bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-500 transition">
+                        class="flex-1 py-2 rounded-xl 
+                               bg-red-600 hover:bg-red-500 
+                               text-white font-medium 
+                               transition transform hover:scale-105">
                         Stop
                     </button>
                 </div>
@@ -65,7 +135,7 @@
 </div>
 
 
-<!-- Alpine Dashboard Script -->
+<!-- Alpine Logic -->
 <script>
 function dashboard() {
     return {
