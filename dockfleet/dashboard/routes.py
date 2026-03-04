@@ -14,8 +14,8 @@ templates = Jinja2Templates(directory="dockfleet/dashboard/templates")
 class Service(BaseModel):
     name: str
     status: str
-    cpu: str
-    memory: str
+    cpu: int          
+    memory: int       
     uptime: str
     restart_count: int
     health_status: str
@@ -32,31 +32,38 @@ def dashboard_home(request: Request):
         "index.html",
         {"request": request}
     )
-
+    
 @router.get("/services", response_model=List[Service])
 def list_services():
-    services = [
+    return [
         Service(
             name="api",
             status="running",
-            cpu="12%",
-            memory="256MB",
-            uptime="2h 15m",
+            cpu=18,
+            memory=320,
+            uptime="4h 12m",
             restart_count=1,
             health_status="healthy"
         ),
         Service(
             name="worker",
+            status="restarting",
+            cpu=5,
+            memory=150,
+            uptime="12m",
+            restart_count=5,
+            health_status="degraded"
+        ),
+        Service(
+            name="scheduler",
             status="stopped",
-            cpu="0%",
-            memory="0MB",
-            uptime="0h",
-            restart_count=3,
+            cpu=0,
+            memory=0,
+            uptime="0m",
+            restart_count=2,
             health_status="unhealthy"
         )
     ]
-
-    return services
 
 
 @router.get("/logs/{service}")
