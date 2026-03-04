@@ -81,6 +81,14 @@ class Orchestrator:
             if name not in desired_services:
                 to_remove.append(name)
 
+        for name, config in desired_services.items():
+            if name in current_services:
+                if config["image"] != current_services[name]["image"]:
+                    to_update.append({
+                        "name": name,
+                        "image": config["image"]
+                    })
+
         return Plan(
             to_create=to_create,
             to_remove=to_remove,
