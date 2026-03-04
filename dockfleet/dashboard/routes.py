@@ -32,7 +32,7 @@ def dashboard_home(request: Request):
         "index.html",
         {"request": request}
     )
-    
+
 @router.get("/services", response_model=List[Service])
 def list_services():
     return [
@@ -86,4 +86,20 @@ def stream_service_logs(service: str):
         event_generator(),
         media_type="text/event-stream"
     )
+    
+
+@router.get("/status")
+def system_status():
+    services = list_services()
+
+    total = len(services)
+    running = sum(1 for s in services if s.status == "running")
+    unhealthy = sum(1 for s in services if s.health_status != "healthy")
+
+    return {
+        "total_services": total,
+        "running": running,
+        "unhealthy": unhealthy
+    }
+
     
