@@ -22,7 +22,7 @@ class Orchestrator:
             StateManager(app.name) if app else None
         )
 
-    def deploy(self):
+    def up(self):
         if not self.app:
             raise ValueError("App configuration required for deploy")
 
@@ -59,7 +59,7 @@ class Orchestrator:
                 "services": services_state,
             }
         )
-    def generate_plan(self, desired, current_state):
+    def ps(self, desired, current_state):
 
         to_create = []
         to_remove = []
@@ -94,3 +94,39 @@ class Orchestrator:
             to_remove=to_remove,
             to_update=to_update
             )
+    
+    def down(self):
+        if not self.app:
+            raise ValueError("App configuration required")
+
+        # Load saved state
+        current_state = self.state.load()
+
+        if not current_state:
+            print("No state found. Nothing to shut down.")
+            return
+
+        services = current_state.get("services", {})
+        network = current_state.get("network")
+
+        # Stop and remove containers (reverse order for safety)
+        for service_name in reversed(list(services.keys())):
+            container_name = services[service_name]["container_name"]
+
+            print(f"[DOWN] Stopping container: {container_name}")
+            self.docker.stop_container(container_name)
+
+            print(f"[DOWN] Removing container: {container_name}")
+            self.docker.remove_container(container_name)
+
+        # Remove network
+        if network:
+            print(f"[DOWN] Removing network: {network}")
+            self.docker.remove_network(network)
+
+        # Clear saved state
+        self.state.delete()
+
+        print(f"[DOWN] App '{self.app.name}' successfully shut down.")
+
+    

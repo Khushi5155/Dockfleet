@@ -6,6 +6,7 @@ class Service:
     name: str
     path: str
     port: int
+    depends_on = []
 
 @dataclass
 class App:

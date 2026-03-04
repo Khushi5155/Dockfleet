@@ -11,7 +11,7 @@ def test_create_when_empty_state():
     state = {}
 
     orchestrator = Orchestrator()
-    plan = orchestrator.generate_plan(desired, state)
+    plan = orchestrator.ps(desired, state)
 
     assert len(plan.to_create) == 1
     assert plan.to_create[0]["name"] == "nginx"
@@ -31,7 +31,7 @@ def test_update_when_image_changes():
     }
 
     orchestrator = Orchestrator()
-    plan = orchestrator.generate_plan(desired, state)
+    plan = orchestrator.ps(desired, state)
 
     assert len(plan.to_update) == 1
 
@@ -49,7 +49,7 @@ def test_no_changes_when_states_match():
     }
 
     orchestrator = Orchestrator()
-    plan = orchestrator.generate_plan(desired, state)
+    plan = orchestrator.ps(desired, state)
 
     assert plan.to_create == []
     assert plan.to_remove == []
