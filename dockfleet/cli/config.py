@@ -54,11 +54,11 @@ class ResourcesConfig(BaseModel):
         return value
     
 #YAML loader
-def load_config(path: Path) -> config:
+def load_config(path: Path) -> DockFleetConfig:
     with open(path, "r") as f:
         data = yaml.safe_load(f)
 
     if not data:
         raise ValueError("Config file is empty")
 
-    return config(**data)
+    return DockFleetConfig(**data)

@@ -1,6 +1,31 @@
+from pathlib import Path
+import pytest
 from dockfleet.cli.config import load_config
 
-config = load_config("examples/dockfleet.yaml")
+def test_valid_config():
+    config = load_config(Path("examples/dockfleet.yaml"))
+    assert "api" in config.services
+    assert config.services["api"].image == "my-api:latest"
 
-print("CONFIG LOADED SUCCESSFULLY")
-print(config)
+def test_missing_image():
+    bad_yaml = """
+services:
+  api:
+    restart: always
+"""
+    path = Path("tests/tmp_bad.yaml")
+    path.write_text(bad_yaml)
+
+    with pytest.raises(Exception):
+        load_config(path)
+
+def test_missing_restart():
+    bad_yaml = """
+services:
+  api:
+    image: my-api:latest
+"""
+    path = Path("tests/tmp_bad2.yaml")
+    path.write_text(bad_yaml)
+    with pytest.raises(Exception):
+        load_config(path)
