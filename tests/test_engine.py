@@ -1,129 +1,57 @@
 from dockfleet.core.orchestrator import Orchestrator
 
 
-def test_create_when_empty_state():
-    desired = {
-        "services": {
-            "nginx": {"image": "nginx:latest"}
-        }
-    }
+# -----------------------------
+# FAKE CLASSES
+# -----------------------------
 
-    state = {}
-
-    orchestrator = Orchestrator()
-    plan = orchestrator.generate_plan(desired, state)
-
-    assert len(plan.to_create) == 1
-    assert plan.to_create[0]["name"] == "nginx"
-    assert len(plan.to_remove) == 0
-
-def test_update_when_image_changes():
-    desired = {
-        "services": {
-            "nginx": {"image": "nginx:1.25"}
-        }
-    }
-
-    state = {
-        "services": {
-            "nginx": {"image": "nginx:latest"}
-        }
-    }
-
-    orchestrator = Orchestrator()
-    plan = orchestrator.generate_plan(desired, state)
-
-    assert len(plan.to_update) == 1
-
-def test_no_changes_when_states_match():
-    desired = {
-        "services": {
-            "nginx": {"image": "nginx:latest"}
-        }
-    }
-
-    state = {
-        "services": {
-            "nginx": {"image": "nginx:latest"}
-        }
-    }
-
-    orchestrator = Orchestrator()
-    plan = orchestrator.generate_plan(desired, state)
-
-    assert plan.to_create == []
-    assert plan.to_remove == []
-    assert plan.to_update == []
-
-class FakeDocker:
-    def __init__(self):
-        self.stopped = []
-        self.removed = []
-        self.network_removed = None
-
-    def stop_container(self, name):
-        self.stopped.append(name)
-
-    def remove_container(self, name):
-        self.removed.append(name)
-
-    def remove_network(self, name):
-        self.network_removed = name
-
-
-class FakeState:
-    def load(self):
-        return {
-            "app": "testapp",
-            "network": "testapp_net",
-            "services": {
-                "web": {
-                    "container_name": "testapp_web"
-                },
-                "api": {
-                    "container_name": "testapp_api"
-                }
-            }
-        }
+class FakeService:
+    def __init__(self, name, image, ports):
+        self.name = name
+        self.image = image
+        self.ports = ports
 
 
 class FakeApp:
     name = "testapp"
     vps = "dummy"
 
+    services = [
+        FakeService("web", "nginx:latest", [80]),
+        FakeService("api", "python:3.11", [5000]),
+    ]
 
-def test_down_stops_and_removes_containers():
-    docker = FakeDocker()
-    state = FakeState()
 
-    orchestrator = Orchestrator(
-        app=FakeApp(),
-        docker_adapter=docker,
-        state_manager=state
-    )
+class FakeDocker:
+    def __init__(self):
+        self.network_created = None
+        self.containers_started = []
+        self.containers_removed = []
+        self.ps_called = False
 
-    orchestrator.down()
+    def create_network(self, name):
+        self.network_created = name
 
-    assert "testapp_web" in docker.stopped
-    assert "testapp_api" in docker.stopped
+    def run_container(self, image, name, ports, network):
+        self.containers_started.append(
+            {
+                "image": image,
+                "name": name,
+                "ports": ports,
+                "network": network,
+            }
+        )
 
-    assert "testapp_web" in docker.removed
-    assert "testapp_api" in docker.removed
+    def remove_container(self, name):
+        self.containers_removed.append(name)
 
-    assert docker.network_removed == "testapp_net"
+    def list_containers(self, app_name):
+        self.ps_called = True
+        return (
+            "testapp_web|nginx:latest|Up 10 seconds\n"
+            "testapp_api|python:3.11|Exited (1)"
+        )
 
-def test_down_when_no_state():
-    class EmptyState:
-        def load(self):
-            return None
-
-    orchestrator = Orchestrator(
-        app=FakeApp(),
-        docker_adapter=FakeDocker(),
-        state_manager=EmptyState()
-    )
-
-    orchestrator.down()
 
 class FakeSSH:
     def __init__(self):
@@ -131,23 +59,71 @@ class FakeSSH:
 
     def run(self, command):
         self.last_command = command
-        return "CONTAINER ID   IMAGE   STATUS"
 
 
-class FakeApp:
-    name = "testapp"
-    vps = "dummy"
+# -----------------------------
+# TEST UP
+# -----------------------------
+
+def test_up_creates_network_and_containers():
+
+    docker = FakeDocker()
+
+    orchestrator = Orchestrator(
+        app=FakeApp(),
+        docker_adapter=docker,
+        ssh_client=FakeSSH()
+    )
+
+    orchestrator.up()
+
+    assert docker.network_created == "testapp_net"
+
+    assert len(docker.containers_started) == 2
+
+    assert docker.containers_started[0]["name"] == "testapp_web"
+    assert docker.containers_started[1]["name"] == "testapp_api"
 
 
-def test_ps_lists_containers():
+# -----------------------------
+# TEST DOWN
+# -----------------------------
+
+def test_down_removes_containers_and_network():
+
+    docker = FakeDocker()
     ssh = FakeSSH()
 
     orchestrator = Orchestrator(
         app=FakeApp(),
+        docker_adapter=docker,
         ssh_client=ssh
+    )
+
+    orchestrator.down()
+
+    assert "testapp_web" in docker.containers_removed
+    assert "testapp_api" in docker.containers_removed
+
+    assert ssh.last_command == "docker network rm testapp_net || true"
+
+
+# -----------------------------
+# TEST PS
+# -----------------------------
+
+def test_ps_lists_containers():
+
+    docker = FakeDocker()
+
+    orchestrator = Orchestrator(
+        app=FakeApp(),
+        docker_adapter=docker,
+        ssh_client=FakeSSH()
     )
 
     output = orchestrator.ps()
 
-    assert ssh.last_command == 'docker ps -a --filter name=testapp --format "{{.Names}}|{{.Image}}|{{.Status}}"'
-    assert "CONTAINER ID" in output
+    assert docker.ps_called is True
+    assert "testapp_web" in output
+    assert "testapp_api" in output

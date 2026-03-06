@@ -1,25 +1,39 @@
+import subprocess
+
+
 class DockerManager:
-    def __init__(self, ssh):
-        self.ssh = ssh
 
-    def create_network(self, name):
-        self.ssh.run(f"docker network create {name}")
-
-    def build_image(self, image_name, path):
-        self.ssh.run(f"docker build -t {image_name} {path}")
-
-    def run_container(self, image, name, port, network):
-        return self.ssh.run(
-            f"docker run -d --name {name} "
-            f"--network {network} "
-            f"-p {port}:{port} {image}"
+    def create_network(self, name: str):
+        subprocess.run(
+            ["docker", "network", "create", name],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
         )
 
+    def run_container(self, image, name, ports, network):
+
+        command = [
+            "docker",
+            "run",
+            "-d",
+            "--name",
+            name,
+            "--network",
+            network
+        ]
+
+        for port in ports:
+            command.extend(["-p", port])
+
+        command.append(image)
+
+        subprocess.run(command)
+
     def stop_container(self, name):
-        self.ssh.run(f"docker stop {name} || true")
+        subprocess.run(["docker", "stop", name])
 
     def remove_container(self, name):
-        self.ssh.run(f"docker rm {name} || true")
+        subprocess.run(["docker", "rm", "-f", name])
 
-    def remove_network(self, name):
-        self.ssh.run(f"docker network rm {name} || true")
+    def list_containers(self):
+        subprocess.run(["docker", "ps"])
