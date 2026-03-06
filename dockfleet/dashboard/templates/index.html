@@ -89,16 +89,15 @@
                         x-text="service.name"></h2>
 
                     <span
+                        class="px-2 py-1 rounded text-xs font-semibold capitalize"
                         :class="{
-                        'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300': service.status === 'running',
-                        'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300': service.status === 'restarting',
-                        'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300': service.status === 'stopped'
-                    }"
-                        class="px-3 py-1 text-xs font-semibold rounded-full capitalize">
-
-                        <span x-text="service.status"></span>
-
-                    </span>
+                            'bg-green-600 text-white': service.status === 'running',
+                            'bg-red-600 text-white': service.status === 'stopped',
+                            'bg-yellow-500 text-black': service.status === 'restarting',
+                            'bg-gray-500 text-white': service.status === 'unknown'
+                        }"
+                        x-text="service.status"
+                    ></span>
 
                 </div>
 
