@@ -31,7 +31,7 @@ def services_from_config(config: DockFleetConfig) -> list[Service]:
             healthcheck_raw = json.dumps(hc_dict)
 
         # 4) Runtime defaults (not from config)
-        status = "unknown"
+        status = "stopped"
         restart_count = 0
         last_health_check = None
         last_failure_reason = None

@@ -10,7 +10,7 @@ class Service(SQLModel, table=True):
     restart_policy: str = Field(nullable=False)
     ports_raw: str | None = Field(default=None)
     healthcheck_raw: str | None = Field(default=None)
-    status: str = Field(nullable=False)
+    status: str = Field(default="unknown", nullable=False)
     restart_count: int = Field(default=0, nullable=False)
     last_health_check : datetime | None = Field(default=None)
     last_failure_reason: str | None = Field(default=None)
