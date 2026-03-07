@@ -1,4 +1,6 @@
 import typer
+import sys
+import subprocess
 from pathlib import Path
 from pydantic import ValidationError
 
@@ -6,7 +8,7 @@ from dockfleet.cli.config import load_config
 from dockfleet.core.orchestrator import Orchestrator
 from dockfleet.health.seed import bootstrap_from_path
 
-app = typer.Typer()
+app = typer.Typer(help="DockFleet CLI - Manage Docker services from YAML configuration")
 
 validate_app = typer.Typer()
 app.add_typer(validate_app, name="validate")
@@ -17,10 +19,10 @@ def validate(path: Path = typer.Argument("dockfleet.yaml")):
     """Validate a DockFleet configuration file."""
     try:
         load_config(path)
-        typer.echo("Config valid")
+        typer.echo("✓ Config valid")
 
     except ValidationError as e:
-        typer.echo("Config validation failed")
+        typer.echo("✗ Config validation failed")
         for err in e.errors():
             location = " -> ".join(str(x) for x in err["loc"])
             typer.echo(f"{location}: {err['msg']}")
@@ -35,11 +37,11 @@ def validate(path: Path = typer.Argument("dockfleet.yaml")):
 def seed(path: Path = typer.Argument("dockfleet.yaml")):
     """Initialize DB and seed services."""
     try:
-        typer.echo("Seeding services into DB...")
+        typer.echo(f"Seeding services from {path}...")
 
         bootstrap_from_path(str(path))
 
-        typer.echo("Seeding complete")
+        typer.echo("✓ Seeding complete")
 
     except Exception as e:
         typer.echo(f"Seeding failed: {e}")
@@ -52,12 +54,15 @@ def up(path: Path = typer.Argument("dockfleet.yaml")):
     try:
         config = load_config(path)
 
-        orch = Orchestrator(config)
+        typer.echo(f"Starting services from {path}...\n")
 
+        orch = Orchestrator(config)
         orch.up()
 
+        typer.echo("\n✓ Services started")
+
     except Exception as e:
-        typer.echo(f"Error: {e}")
+        typer.echo(f"Error starting services: {e}")
         raise typer.Exit(code=1)
 
 
@@ -67,12 +72,15 @@ def down(path: Path = typer.Argument("dockfleet.yaml")):
     try:
         config = load_config(path)
 
-        orch = Orchestrator(config)
+        typer.echo(f"Stopping services from {path}...\n")
 
+        orch = Orchestrator(config)
         orch.down()
 
+        typer.echo("\n✓ Services stopped")
+
     except Exception as e:
-        typer.echo(f"Error: {e}")
+        typer.echo(f"Error stopping services: {e}")
         raise typer.Exit(code=1)
 
 
@@ -80,12 +88,39 @@ def down(path: Path = typer.Argument("dockfleet.yaml")):
 def ps():
     """List running containers."""
     try:
-        orch = Orchestrator(config=None)
+        typer.echo("Listing running containers...\n")
 
+        orch = Orchestrator(config=None)
         orch.ps()
 
     except Exception as e:
-        typer.echo(f"Error: {e}")
+        typer.echo(f"Error listing containers: {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def doctor():
+    """Check DockFleet environment."""
+    typer.echo("Running DockFleet doctor...\n")
+
+    # Python version check
+    version = sys.version.split()[0]
+    typer.echo(f"Python version: {version}")
+
+    # Docker check
+    try:
+        result = subprocess.run(
+            ["docker", "--version"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        typer.echo(f"Docker detected: {result.stdout.strip()}")
+        typer.echo("✓ Environment looks good")
+
+    except Exception:
+        typer.echo("✗ Docker not found or not running")
         raise typer.Exit(code=1)
 
 
