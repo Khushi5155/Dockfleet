@@ -139,6 +139,11 @@
                         <strong>Restart Count:</strong>
                         <span x-text="service.restart_count"></span>
                     </p>
+                    
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+    Last Check:
+    <span x-text="formatTime(service.last_health_check)"></span>
+</p>
 
                 </div>
 
@@ -240,7 +245,17 @@ function dashboard() {
 
             document.documentElement.classList.toggle('dark')
 
-        }
+        },
+        
+        formatTime(timestamp) {
+
+    if (!timestamp) return "Never"
+
+    const date = new Date(timestamp)
+
+    return date.toLocaleTimeString()
+
+},
 
     }
 
