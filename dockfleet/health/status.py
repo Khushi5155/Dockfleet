@@ -14,27 +14,23 @@ def _update_status(
     new_status: str,
     set_last_health: bool = False,
 ) -> None:
-    # 1) Session open with context manager
+    """Low-level helper to flip status for a service by name."""
     with Session(engine) as session:
-        # 2) Service row find karo by name
         existing = session.exec(
             select(Service).where(Service.name == name)
         ).one_or_none()
 
-        # 3) Not found → silently return (ya warning log)
         if existing is None:
             print(
                 f"[status] Service '{name}' not found in DB, skipping status update"
             )
             return
 
-        # 4) Status change + optional last_health_check
         existing.status = new_status
 
         if set_last_health:
             existing.last_health_check = datetime.utcnow()
 
-        # 5) Commit the change
         session.add(existing)
         session.commit()
 
@@ -75,7 +71,7 @@ def update_service_health(
             svc.status = "running"
             # if we were failing before, reset the streak
             svc.consecutive_failures = 0
-            # restart_count unchanged here 
+            # restart_count unchanged here
         else:
             svc.status = "unhealthy"
             svc.restart_count += 1
@@ -85,3 +81,22 @@ def update_service_health(
 
         session.add(svc)
         session.commit()
+
+def needs_restart(service: Service) -> bool:
+    """
+    Decide if a service should be restarted based on failure streak
+    and restart_policy.
+    Rules:
+    - If restart_policy == "never" -> never restart.
+    - Otherwise, restart if consecutive_failures >= 3.
+    """
+    # policies: "always", "on-failure", "never"
+    if service.restart_policy == "never":
+        return False
+
+    if service.consecutive_failures < 3:
+        return False
+
+    # For "always" and "on-failure", once we have 3 consecutive
+    # unhealthy checks, this service is eligible for restart.
+    return True
