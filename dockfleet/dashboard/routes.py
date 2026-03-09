@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from dockfleet.dashboard.api import fetch_services
+from dockfleet.dashboard.services import get_services_from_db_or_mock
 from pydantic import BaseModel
-from datetime import datetime, List
+from typing import List
+from datetime import datetime
 from typing import Optional
 import time
 import json
@@ -37,9 +38,10 @@ def dashboard_home(request: Request):
 @router.get("/services")
 def list_services():
     """
-    Return services with health data from SQLite
+    Return service health information.
+    Currently mocked for Day 10.
     """
-    return fetch_services()
+    return get_services_from_db_or_mock()
 
 
 
@@ -85,5 +87,4 @@ def system_status():
         "running": running,
         "stopped": stopped
     }
-
     
