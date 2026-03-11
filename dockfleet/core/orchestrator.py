@@ -16,6 +16,25 @@ from dockfleet.cli.config import RestartPolicy
 
 logger = logging.getLogger(__name__)
 
+_orchestrator_instance = None
+
+def get_orchestrator(config=None):
+    """Get/create global Orchestrator instance."""
+    global _orchestrator_instance
+    if _orchestrator_instance is None:
+        _orchestrator_instance = Orchestrator(config or {})
+    return _orchestrator_instance
+
+def restart_service(name: str, config=None) -> bool:
+    """Module wrapper for HealthScheduler."""
+    orch = get_orchestrator(config)
+    return orch.restart_service(name, config)
+
+def _mark_restart_failed(name: str, reason: str) -> None:
+    """Module wrapper for HealthScheduler."""
+    orch = get_orchestrator()
+    orch._mark_restart_failed(name, reason)
+
 class Orchestrator:
 
     def __init__(self, config):
