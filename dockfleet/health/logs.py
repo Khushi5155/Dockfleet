@@ -1,6 +1,5 @@
 from datetime import datetime
-from sqlmodel import Session
-
+from sqlmodel import Session, select
 from .models import LogEvent, Service, engine
 
 
