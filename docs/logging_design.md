@@ -35,3 +35,15 @@ Frontend / dashboard can then:
 - Query recent `LogEvent` rows per service for a "Recent events" sidebar.
 - Build crash analytics (e.g. “most unstable services”, timeline of errors) from
   this metadata, while still using live SSE for full log streaming.
+
+## Writers: how logs will reach LogEvent
+
+- CLI `dockfleet logs` and the SSE backend that tails `docker logs -f` can
+  call `store_log_line(service_name, message, level, source="docker-logs")`
+  for sampled / important lines (e.g. only `ERROR` or first line of a burst).
+
+- Health scheduler / orchestrator can also write structured events:
+  `store_log_line(name, "auto-restart failed", level="ERROR", source="scheduler")`.
+
+Later, crash analytics / dashboard can query `LogEvent` by `service_id`,
+`level`, and `created_at` to show timelines and “most error-prone services”.

@@ -30,7 +30,7 @@ def restart_service(name: str, config=None) -> bool:
     orch = get_orchestrator(config)
     return orch.restart_service(name, config)
 
-def _mark_restart_failed(name: str, reason: str) -> None:
+def mark_restart_failed(name: str, reason: str) -> None:
     """Module wrapper for HealthScheduler."""
     orch = get_orchestrator()
     orch._mark_restart_failed(name, reason)

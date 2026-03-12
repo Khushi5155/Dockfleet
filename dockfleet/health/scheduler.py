@@ -126,6 +126,30 @@ class HealthScheduler:
         This keeps the decision logic on the health side and the actual
         container restart on the orchestrator side.
         """
+        #self-healing toggle from config
+        svc_cfg = self.config.services.get(name)
+        if svc_cfg is None:
+            return
+
+        # Service-level override > top-level default.
+        # Assumes DockFleetConfig has `self_healing: bool` and
+        # ServiceConfig has `self_healing: bool | None`.
+        service_self_healing = getattr(svc_cfg, "self_healing", None)
+        if service_self_healing is None:
+            self_healing = getattr(self.config, "self_healing", True)
+        else:
+            self_healing = service_self_healing
+
+        if not self_healing:
+            # Auto-restart disabled for this service (or globally)
+            self._logger.debug(
+                "HealthScheduler: self-healing disabled for %s, "
+                "skipping auto-restart",
+                name,
+            )
+            return
+
+        #Load latest DB state
         with Session(engine) as session:
             svc = session.exec(
                 select(Service).where(Service.name == name)
@@ -138,6 +162,7 @@ class HealthScheduler:
             )
             return
 
+        #Check failure threshold + restart policy
         if not needs_restart(svc):
             return
 
@@ -149,8 +174,8 @@ class HealthScheduler:
             svc.consecutive_failures,
         )
 
+        #Delegate to orchestrator
         try:
-            # Orchestrator does the real Docker restart.
             restart_service(svc.name, self.config)
 
             # On success: reset streak, mark running, and record event.
