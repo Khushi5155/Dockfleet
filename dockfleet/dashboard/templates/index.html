@@ -373,37 +373,46 @@
 
                 },
 
-                startLogs() {
-
-                    if (!this.selectedService) {
-                        alert("Select a service first")
-                        return
-                    }
-
-                    // close previous stream
+                connectLogs() {
+                    
+                    if (!this.selectedService) return
+                    
+                    // close old connection
                     if (this.logSource) {
                         this.logSource.close()
                     }
-
-                    // clear logs
-                    this.$refs.logBox.innerHTML = ""
-
-                    // connect to SSE endpoint
+                    
+                    this.logs = []
+                    
                     this.logSource = new EventSource(`/logs/${this.selectedService}`)
-
+                    
                     this.logSource.onmessage = (event) => {
-
-                        const line = document.createElement("div")
-
-                        line.textContent = event.data
-
-                        this.$refs.logBox.appendChild(line)
-
-                        this.$refs.logBox.scrollTop =
-                            this.$refs.logBox.scrollHeight
-
+                        
+                        this.logs.push(event.data)
+                        this.$nextTick(() => {
+                            if (this.autoScroll) {
+                                this.$refs.logBox.scrollTop =
+                                this.$refs.logBox.scrollHeight
+                            }
+                        })
+                    
                     }
-
+                },
+                
+                disconnectLogs() {
+                    
+                    if (this.logSource) {
+                        this.logSource.close()
+                        this.logSource = null
+                    }
+                },
+                
+                clearLogs() {
+                    this.logs = []
+                },
+                
+                toggleScroll() {
+                    this.autoScroll = !this.autoScroll
                 },
 
                 toggleDarkMode() {
