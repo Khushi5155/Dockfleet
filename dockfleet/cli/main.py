@@ -205,6 +205,38 @@ def health_dev(
     except Exception as e:
         typer.echo(f"Health scheduler failed: {e}")
         raise typer.Exit(code=1)
+@app.command("self-heal")
+def self_heal(
+    path: Path = typer.Argument("dockfleet.yaml")
+):
+    """
+    Run DockFleet in continuous self-healing mode.
+    Health checks run continuously and unhealthy services are restarted automatically.
+    """
+    try:
+        typer.echo("Starting DockFleet self-healing loop...\n")
 
+        config = load_config(path)
+
+        typer.echo(f"Bootstrapping health DB from {path} ...")
+        bootstrap_from_path(str(path))
+
+        scheduler = HealthScheduler(config)
+
+        typer.echo("Self-healing active. Press Ctrl+C to stop.\n")
+
+        scheduler.start()
+
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            typer.echo("\nStopping self-healing loop...")
+            scheduler.stop()
+
+    except Exception as e:
+        typer.echo(f"Self-heal command failed: {e}")
+        raise typer.Exit(code=1)
+    
 if __name__ == "__main__":
     app()

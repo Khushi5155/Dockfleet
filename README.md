@@ -291,6 +291,17 @@ Restart policies:
 - `on-failure` → restart only when a failure is detected
 - `never` → service will never restart automatically
 
+### Self-Healing Demo
+
+Run DockFleet in automatic recovery mode:
+
+```
+dockfleet self-heal examples/dockfleet.yaml
+```
+
+If a service fails health checks three times consecutively,
+DockFleet automatically restarts the container according to its restart policy.
+
 ---
 
 ### <u>Tech Stack</u>
