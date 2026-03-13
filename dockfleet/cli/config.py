@@ -31,6 +31,7 @@ class ServiceConfig(BaseModel):
     resources: Optional[ResourcesConfig] = None
     depends_on: Optional[List[str]] = None
     environment: Optional[List[str]] = None
+    self_healing: Optional[bool] = None
 
     @field_validator("ports")
     @classmethod
@@ -64,6 +65,7 @@ class ServiceConfig(BaseModel):
 
 # Root Config Model
 class DockFleetConfig(BaseModel):
+    self_healing: bool = True
     services: Dict[str, ServiceConfig]
 
 # YAML loader

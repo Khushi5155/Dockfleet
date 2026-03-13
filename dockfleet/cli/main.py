@@ -130,6 +130,11 @@ def health_dev(
         "--once",
         help="Run a single health pass and exit (useful for tests).",
     ),
+    no_restart: bool = typer.Option(
+        False,
+        "--no-restart",
+        help="Run health checks without triggering container restarts.",
+    ),
 ):
     """
     Developer command to run the health check scheduler backed by SQLite DB.
@@ -143,6 +148,10 @@ def health_dev(
         typer.echo("Press Ctrl+C to stop\n" if not once else "Running a single health pass\n")
 
         config = load_config(path)
+        if no_restart:
+         config.self_healing = False
+         for svc in config.services.values():
+          svc.self_healing = False
 
         # Ensure DB and Service rows are present
         typer.echo(f"Bootstrapping health DB from {path} ...")
