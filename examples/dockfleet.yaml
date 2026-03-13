@@ -2,7 +2,7 @@ self_healing: true
 
 services:
   api:
-    image: my-api:latest
+    image: nginx:latest
     ports:
       - "8000:8000"
     healthcheck:
