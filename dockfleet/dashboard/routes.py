@@ -1,7 +1,8 @@
+import subprocess
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from dockfleet.dashboard.services import get_services_from_db_or_mock
+from dockfleet.dashboard.services import get_services
 from dockfleet.core.logs import stream_container_logs
 from pydantic import BaseModel
 from typing import List
@@ -37,15 +38,38 @@ def dashboard_home(request: Request):
 @router.get("/services")
 def list_services():
     """
-    Return service health information.
-    Currently mocked for Day 10.
+    Return services combining DB + Docker status.
     """
-    return get_services_from_db_or_mock()
+    return get_services()
 
+@router.post("/services/{name}/restart")
+def restart_service(name: str):
+
+    container = f"dockfleet_{name}"
+
+    subprocess.run(
+        ["docker", "restart", container],
+        capture_output=True
+    )
+
+    return {"message": f"{name} restarted"}
+
+@router.post("/services/{name}/stop")
+def stop_service(name: str):
+
+    container = f"dockfleet_{name}"
+
+    subprocess.run(
+        ["docker", "stop", container],
+        capture_output=True
+    )
+
+    return {"message": f"{name} stopped"}
+    
 @router.get("/status")
 def system_status():
 
-    services = get_services_from_db_or_mock()
+    services = get_services()
 
     total = len(services)
 
@@ -56,15 +80,19 @@ def system_status():
     restarting = sum(
         1 for s in services if s["health_status"] == "restarting"
     )
+    unhealthy = sum(
+    1 for s in services if s["health_status"] == "unhealthy"
+)
 
     stopped = sum(
-        1 for s in services if s["health_status"] not in ["healthy", "restarting"]
+        1 for s in services if s["health_status"] not in ["healthy", "restarting", "unhealthy"]
     )
 
     return {
         "total_services": total,
         "running": running,
         "restarting": restarting,
+        "unhealthy": unhealthy,
         "stopped": stopped
     }
 

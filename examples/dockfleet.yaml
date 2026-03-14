@@ -1,6 +1,8 @@
+self_healing: true
+
 services:
   api:
-    image: my-api:latest
+    image: nginx:latest
     ports:
       - "8000:8000"
     healthcheck:
@@ -12,3 +14,4 @@ services:
   redis:
     image: redis:7
     restart: always
+    self_healing: false

@@ -153,8 +153,6 @@ pip install -r requirements.txt
 
 This will install FastAPI, Typer, SQLModel/SQLAlchemy, and other libraries used by Dockfleet.
 
-
-
 ### Install CLI locally
 
 DockFleet CLI (`dockfleet ...` commands) is provided by this repository itself.  
@@ -280,6 +278,29 @@ Example output:
 ```
 
 Health results are stored in SQLite and will later be used by DockFleet to trigger automatic service recovery.
+
+### Auto-Restart
+
+DockFleet can automatically restart unhealthy services.
+
+- If a service fails **3 consecutive health checks**, DockFleet attempts a restart.
+
+Restart policies:
+
+- `always` → service restarts whenever failures occur
+- `on-failure` → restart only when a failure is detected
+- `never` → service will never restart automatically
+
+### Self-Healing Demo
+
+Run DockFleet in automatic recovery mode:
+
+```
+dockfleet self-heal examples/dockfleet.yaml
+```
+
+If a service fails health checks three times consecutively,
+DockFleet automatically restarts the container according to its restart policy.
 
 ---
 
