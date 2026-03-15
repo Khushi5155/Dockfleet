@@ -35,3 +35,6 @@ Thumbs.db
 # Coverage
 .coverage
 htmlcov/
+
+# Python packaging / build artifacts
+dockfleet.egg-info/
