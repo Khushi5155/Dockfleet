@@ -100,20 +100,35 @@ def ps():
 @app.command()
 def logs(
     service: str = typer.Argument(..., help="Service name"),
-    lines: int = typer.Option(100, "--lines", help="Number of log lines to show"),
+    lines: int = typer.Option(100, "--lines", help="Number of log lines"),
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow log output"),
 ):
     """
     Show logs for a DockFleet service container.
     """
+
+    container_name = f"dockfleet_{service}"
+
     try:
-        output = get_logs(service, lines=lines, follow=follow)
 
-        if output:
-            typer.echo(output)
+        if follow:
+            typer.echo(f"Streaming logs for {service} (Ctrl+C to stop)\n")
 
-    except Exception as e:
-        typer.echo(f"Failed to fetch logs for {service}: {e}")
+            subprocess.run(
+                ["docker", "logs", "-f", "--tail", str(lines), container_name]
+            )
+
+        else:
+            result = subprocess.run(
+                ["docker", "logs", "--tail", str(lines), container_name],
+                capture_output=True,
+                text=True,
+            )
+
+            typer.echo(result.stdout)
+
+    except Exception:
+        typer.echo(f"Service '{service}' not found or container not running.")
         raise typer.Exit(code=1)
     
 @app.command()

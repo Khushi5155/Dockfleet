@@ -153,7 +153,7 @@ pip install -r requirements.txt
 
 This will install FastAPI, Typer, SQLModel/SQLAlchemy, and other libraries used by Dockfleet.
 
-### Install CLI locally
+#### 6.Install CLI locally
 
 DockFleet CLI (`dockfleet ...` commands) is provided by this repository itself.  
 For development, install it in editable mode inside your virtual environment.
@@ -301,6 +301,19 @@ dockfleet self-heal examples/dockfleet.yaml
 
 If a service fails health checks three times consecutively,
 DockFleet automatically restarts the container according to its restart policy.
+
+### Logs
+
+DockFleet allows viewing service logs directly from the CLI.
+
+Examples:
+
+```
+dockfleet logs api
+dockfleet logs api --follow
+```
+
+The dashboard also supports live log streaming using Server-Sent Events (SSE).
 
 ---
 
