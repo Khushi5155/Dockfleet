@@ -14,22 +14,19 @@ class DockerManager:
             pass
 
 
-    def run_container(self, image, name, ports, network):
-        command = [
-            "docker",
-            "run",
-            "-d",
-            "--name",
-            name,
-            "--network",
-            network
-        ]
-        for port in ports:
-            command.extend(["-p", port])
+    def run_container(self, image, name, flags=None, network=None):
 
-        command.append(image)
+        cmd = ["docker", "run", "-d", "--name", name]
 
-        subprocess.run(command, check=True)
+        if network:
+            cmd += ["--network", network]
+
+        if flags:
+            cmd += flags
+
+        cmd.append(image)
+
+        subprocess.run(cmd, check=True)
 
 
     def remove_container(self, name):
