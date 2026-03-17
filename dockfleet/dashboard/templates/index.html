@@ -64,6 +64,11 @@
                 </p>
             </div>
 
+            <button @click="activeTab = 'logs'; fetchLogs()"
+                :class="activeTab === 'logs' ? 'text-blue-400' : ''">
+                Logs
+            </button>
+
             <button @click="toggleDarkMode()"
                 class="px-4 py-2 rounded-xl bg-gray-800 text-white dark:bg-gray-700 hover:scale-105 transition">
                 Toggle Theme
@@ -308,6 +313,46 @@
 
         </div>
 
+        <div x-show="activeTab === 'logs'" class="p-4">
+
+    <!-- Filters -->
+    <div class="flex gap-4 mb-4">
+
+        <!-- Service Filter -->
+        <select x-model="selectedService"
+                @change="fetchLogs()"
+                class="bg-gray-800 text-white p-2 rounded">
+
+            <option value="all">All Services</option>
+
+            <template x-for="svc in services">
+                <option :value="svc.name"
+                        x-text="svc.name"></option>
+            </template>
+
+        </select>
+
+        <!-- Search -->
+        <input type="text"
+               placeholder="Search logs..."
+               x-model="searchQuery"
+               class="bg-gray-800 text-white p-2 rounded w-full"/>
+    </div>
+
+    <!-- Logs Viewer -->
+    <div class="bg-black text-green-400 font-mono text-sm p-4 rounded h-[400px] overflow-y-scroll">
+
+        <template x-for="log in filteredLogs" :key="log.message + Math.random()">
+            <div class="mb-1">
+                <span class="text-blue-400">[<span x-text="log.service"></span>]</span>
+                <span x-text="log.message"></span>
+            </div>
+        </template>
+
+    </div>
+
+</div>
+
         <!-- LOG VIEWER -->
         <div class="mt-16">
 
@@ -374,6 +419,9 @@
                 logs: [],
                 autoScroll: true,
 
+                activeTab: 'services',
+                searchQuery: '',
+
                 async init() {
 
                     await this.fetchServices()
@@ -391,6 +439,18 @@
                     }
 
                 },
+
+                async fetchLogs() {
+                    const res = await fetch(`/logs?service=${this.selectedService}`);
+                    this.logs = await res.json();
+                },
+                get filteredLogs() {
+    if (!this.searchQuery) return this.logs;
+
+    return this.logs.filter(log =>
+        log.message.toLowerCase().includes(this.searchQuery.toLowerCase())
+    );
+},
 
                 async fetchServices() {
 
