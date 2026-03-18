@@ -2,12 +2,21 @@ from datetime import datetime
 from sqlmodel import Session, select
 from .models import LogEvent, Service, engine
 
-
-def store_log_line(service_name: str, message: str, level: str | None = None, source: str | None = None) -> None:
+def store_log_line(
+    service_name: str,
+    message: str,
+    level: str | None = None,
+    source: str | None = None,
+) -> None:
     """
-    Lightweight helper to store a single log metadata row.
+    Store a single log metadata row for later search/analytics.
 
-    This will be called from CLI/SSE log streaming in Week 3.
+    - Looks up Service by name and attaches service_id + service_name.
+    - Skips insert (with a warning) if the service is not present in the DB.
+    - Intended callers:
+        * CLI `dockfleet logs` path (sampling/aggregation).
+        * SSE log streaming wrapper in the dashboard backend.
+        * Orchestrator for structured events.
     """
     with Session(engine) as session:
         svc = session.exec(
@@ -15,9 +24,7 @@ def store_log_line(service_name: str, message: str, level: str | None = None, so
         ).one_or_none()
 
         if svc is None:
-            # Best-effort: we can still store the name with a fake id.
-            # For now, just skip to keep it simple.
-            print(f"[logs] Service '{service_name}' not found in DB")
+            print(f"[logs] Service '{service_name}' not found in DB, skipping log")
             return
 
         event = LogEvent(
@@ -31,3 +38,4 @@ def store_log_line(service_name: str, message: str, level: str | None = None, so
 
         session.add(event)
         session.commit()
+        
