@@ -55,9 +55,11 @@ class LogEvent(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
 
     service_id: int = Field(nullable=False, foreign_key="service.id")
-    service_name: str = Field(nullable=False)
+    # Index on service_name for fast per-service queries
+    service_name: str = Field(nullable=False, index=True)
 
-    created_at: datetime = Field(nullable=False)
+    # Index on created_at for time-ordered scans
+    created_at: datetime = Field(nullable=False, index=True)
 
     # Optional metadata fields
     level: str | None = Field(default=None)  # e.g. "INFO", "WARN", "ERROR"

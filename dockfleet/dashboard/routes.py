@@ -1,19 +1,26 @@
 import subprocess
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, StreamingResponse, PlainTextResponse
+from datetime import datetime
+from typing import Optional, List
+
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import (
+    HTMLResponse,
+    StreamingResponse,
+)
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+
 from dockfleet.dashboard.services import get_services
 from dockfleet.core.logs import stream_container_logs
 from dockfleet.health.status import (
     record_manual_restart_event,
     record_manual_stop,
 )
-from fastapi import Query
-from sqlmodel import Session, select
-from dockfleet.health.models import LogEvent, engine
-from pydantic import BaseModel
-from datetime import datetime
-from typing import Optional, List
+from dockfleet.health.logs import (
+    query_logs,
+    iter_logs_as_text,
+    iter_logs_as_csv,
+)
 
 router = APIRouter()
 
@@ -47,9 +54,11 @@ class Service(BaseModel):
     cpu_limit: Optional[str] = None
     memory_limit: Optional[str] = None
 
+
 class ActionResponse(BaseModel):
     ok: bool
     message: str
+
 
 # ------------------------------------------------
 # Dashboard homepage
@@ -58,7 +67,7 @@ class ActionResponse(BaseModel):
 def dashboard_home(request: Request):
     return templates.TemplateResponse(
         "index.html",
-        {"request": request}
+        {"request": request},
     )
 
 
@@ -70,17 +79,17 @@ def dashboard_home(request: Request):
 def list_services():
     return get_services()
 
+
 # ------------------------------------------------
 # Restart service
 # ------------------------------------------------
 @router.post("/services/{name}/restart", response_model=ActionResponse)
 def restart_service(name: str):
-
     container = f"dockfleet_{name}"
 
     result = subprocess.run(
         ["docker", "restart", container],
-        capture_output=True
+        capture_output=True,
     )
 
     ok = result.returncode == 0
@@ -91,7 +100,7 @@ def restart_service(name: str):
 
     return {
         "message": f"{name} restarted",
-        "ok": ok
+        "ok": ok,
     }
 
 
@@ -100,12 +109,11 @@ def restart_service(name: str):
 # ------------------------------------------------
 @router.post("/services/{name}/stop", response_model=ActionResponse)
 def stop_service(name: str):
-
     container = f"dockfleet_{name}"
 
     result = subprocess.run(
         ["docker", "stop", container],
-        capture_output=True
+        capture_output=True,
     )
 
     ok = result.returncode == 0
@@ -116,88 +124,118 @@ def stop_service(name: str):
 
     return {
         "message": f"{name} stopped",
-        "ok": ok
+        "ok": ok,
     }
 
+
+# ------------------------------------------------
+# DB-backed logs metadata API (for viewer + infinite scroll)
+# ------------------------------------------------
 @router.get("/logs/db")
 def list_logs(
     service_name: Optional[str] = Query(default=None),
     q: Optional[str] = Query(default=None),
-    limit: int = Query(default=100, le=500),
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ):
     """
     Return recent log events from DB.
-    Optional filtering by service name or search text.
+
+    - Optional filtering by service name and search text.
+    - limit/offset for pagination (dashboard infinite scroll).
     """
+    events = query_logs(
+        service_name=service_name,
+        q=q,
+        limit=limit,
+        offset=offset,
+    )
 
-    with Session(engine) as session:
+    return [
+        {
+            "id": log.id,
+            "service_name": log.service_name,
+            "timestamp": log.created_at,
+            "level": log.level,
+            "message": log.message,
+            "source": log.source,
+        }
+        for log in events
+    ]
 
-        stmt = select(LogEvent)
 
-        if service_name:
-            stmt = stmt.where(LogEvent.service_name == service_name)
-
-        if q:
-            stmt = stmt.where(LogEvent.message.contains(q))
-
-        stmt = stmt.order_by(LogEvent.created_at.desc()).limit(limit)
-
-        rows = session.exec(stmt).all()
-
-        return [
-            {
-                "id": log.id,
-                "service_name": log.service_name,
-                "timestamp": log.created_at,
-                "level": log.level,
-                "message": log.message,
-                "source": log.source,
-            }
-            for log in rows
-        ]
-
+# ------------------------------------------------
+# Legacy /logs: live docker logs for a service (non-DB)
+# ------------------------------------------------
 @router.get("/logs")
 def get_logs(
     service_name: Optional[str] = Query(None),
     q: Optional[str] = Query(None),
-    limit: int = Query(100)
+    limit: int = Query(100),
 ):
+    """
+    Live docker logs for a service (non-persisted), with optional
+    substring filter, used by CLI / live views.
+    """
     from dockfleet.core.logs import get_logs_for_service
 
-    # ❗ Prevent crash when no service selected
+    # Prevent crash when no service selected
     if not service_name:
         return []
 
     logs = get_logs_for_service(service_name, limit)
 
-    # 🔍 Search filter
+    # Search filter in-memory
     if q:
         logs = [log for log in logs if q.lower() in log.lower()]
 
     return logs
 
+
+# ------------------------------------------------
+# Download logs from DB (streaming)
+# ------------------------------------------------
 @router.get("/logs/download")
-def download_logs(service_name: str = Query(None)):
-    from dockfleet.core.logs import get_logs_for_service
+def download_logs(
+    service_name: Optional[str] = Query(default=None),
+    q: Optional[str] = Query(default=None),
+    format: str = Query("text", pattern="^(text|csv)$"),
+):
+    """
+    Download logs stored in DB.
 
-    logs = get_logs_for_service(service_name, limit=500)
+    - Uses same filters as /logs/db (service_name, q).
+    - format=text: plain text lines, good for quick view.
+    - format=csv: CSV for analysis.
+    """
+    if format == "csv":
+        return StreamingResponse(
+            iter_logs_as_csv(service_name=service_name, q=q),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{service_name or "all"}_logs.csv"'
+                )
+            },
+        )
 
-    content = "\n".join(logs)
-
-    return PlainTextResponse(
-        content,
+    # default: text
+    return StreamingResponse(
+        iter_logs_as_text(service_name=service_name, q=q),
         media_type="text/plain",
         headers={
-            "Content-Disposition": f"attachment; filename={service_name or 'all'}_logs.txt"
-        }
+            "Content-Disposition": (
+                f'attachment; filename="{service_name or "all"}_logs.txt"'
+            )
+        },
     )
+
 
 # ------------------------------------------------
 # System summary for dashboard
 # ------------------------------------------------
 @router.get("/status")
 def system_status():
-
     services = get_services()
 
     total = len(services)
@@ -215,7 +253,8 @@ def system_status():
     )
 
     stopped = sum(
-        1 for s in services
+        1
+        for s in services
         if s["health_status"] not in ["healthy", "restarting", "unhealthy"]
     )
 
@@ -224,7 +263,7 @@ def system_status():
         "running": running,
         "restarting": restarting,
         "unhealthy": unhealthy,
-        "stopped": stopped
+        "stopped": stopped,
     }
 
 
@@ -233,14 +272,11 @@ def system_status():
 # ------------------------------------------------
 @router.get("/logs/{service}")
 async def stream_logs(service: str):
-
-   
-
     async def event_stream():
         async for line in stream_container_logs(service):
             yield line
 
     return StreamingResponse(
         event_stream(),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
     )
