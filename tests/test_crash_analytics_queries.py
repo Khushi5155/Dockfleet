@@ -112,10 +112,10 @@ def test_get_most_unstable_services():
 
 def test_get_failure_reasons_breakdown():
     breakdown = get_failure_reasons_breakdown("api", window_hours=24)
-    # api: 2 health_check + 1 manual
-    assert breakdown["3_failed_health_checks"] == 2
-    assert breakdown["manual_dashboard_restart"] == 1
+    # api: 2 health_check + 1 manual → grouped categories
+    assert breakdown["healthcheck_timeout"] == 2
+    assert breakdown["manual_restart"] == 1
 
-    # worker ke liye bhi sanity check
+    # worker ke liye bhi sanity check (only healthcheck_timeout)
     worker_breakdown = get_failure_reasons_breakdown("worker", window_hours=24)
-    assert worker_breakdown["3_failed_health_checks"] == 1
+    assert worker_breakdown["healthcheck_timeout"] == 1
