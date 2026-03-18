@@ -62,6 +62,44 @@ Each service specifies the Docker image, ports, restart policy, and optional hea
 DockFleet is similar to Docker Compose but focuses on lightweight local orchestration with built-in health monitoring and automatic recovery.  
 It is designed for small deployments and development environments where Kubernetes would be too complex.
 
+
+
+---
+
+## Advanced YAML Features
+
+DockFleet supports advanced configuration for more control over services.
+
+### Example
+
+```
+```yaml
+services:
+  redis:
+    image: redis:7
+    restart: always
+```
+
+```
+  api:
+    image: nginx:latest
+    restart: always
+```
+
+    ports:
+      - "8000:8000"
+    
+    depends_on:
+      - redis
+    
+    environment:
+      - ENV=production
+      - DEBUG=false
+    
+    resources:
+      memory: "512m"
+      cpu: 0.5
+
 ---
 
 ### <u>Setup (Python + Virtual Environment)</u>
