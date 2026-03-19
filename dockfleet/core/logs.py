@@ -1,12 +1,10 @@
 import subprocess
 import logging
 import asyncio
-from datetime import datetime
 from typing import Optional
-from sqlmodel import Session, select
-from dockfleet.health.status import engine
 from dockfleet.core.orchestrator import get_container_name
-from dockfleet.health.logs import LogEntry
+from dockfleet.health.logs import store_log_line as store_log_line_in_db
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,10 +21,10 @@ async def stream_container_logs(service_name: str):
             timeout=5,
         )
         if not result.stdout.strip():
-            yield f"data: {{ \"error\": \"Container {container} not found\" }}\n\n"
+            yield f'data: {{ "error": "Container {container} not found" }}\n\n'
             return
     except Exception:
-        yield f"data: {{ \"error\": \"Failed to check container {container}\" }}\n\n"
+        yield f'data: {{ "error": "Failed to check container {container}" }}\n\n'
         return
 
     # Stream logs with tail=100, follow
@@ -44,8 +42,10 @@ async def stream_container_logs(service_name: str):
         for line in proc.stdout:
             line = line.rstrip()
             if line:
+                # SSE frame
                 yield f"data: {line}\n\n"
-            # optional: small sleep to be nicer in async loop
+                # Optionally: also store sampled log lines in DB
+                # store_log_line_in_db(service_name, line, source="docker-logs")
             await asyncio.sleep(0)
     except GeneratorExit:
         logger.info("Client disconnected from %s logs", container)
@@ -55,7 +55,7 @@ async def stream_container_logs(service_name: str):
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
-        logger.info("Logs stream for %s cleaned up")
+        logger.info("Logs stream for %s cleaned up", container)
 
 
 # backward compatibility for old sync callers/tests
@@ -83,7 +83,8 @@ def stream_logs(service_name: str):
     except Exception as e:
         logger.error("Failed to stream logs (sync) for %s: %s", container, e)
         return []
-    
+
+
 def get_logs_services(service_name: str, limit: int = 100):
     """Fetch last N logs (non-streaming)"""
 
@@ -93,39 +94,26 @@ def get_logs_services(service_name: str, limit: int = 100):
         result = subprocess.run(
             ["docker", "logs", "--tail", str(limit), container],
             capture_output=True,
-            text=True
+            text=True,
         )
 
         logs = result.stdout.strip().split("\n")
-
         return logs
-
     except Exception as e:
         return [f"Error fetching logs: {str(e)}"]
-    
-MAX_LOGS_PER_SERVICE = 1000
+
 
 def store_log_line(service_name: str, message: str) -> None:
+    """
+    Backwards-compatible wrapper that stores a log line in the
+    central LogEvent table via health.logs.store_log_line.
+    """
     try:
-        with Session(engine) as session:
-
-            log = LogEntry(
-                service_name=service_name,
-                message=message
-            )
-            session.add(log)
-
-            old_logs = session.exec(
-                select(LogEntry)
-                .where(LogEntry.service_name == service_name)
-                .order_by(LogEntry.timestamp.desc())
-                .offset(MAX_LOGS_PER_SERVICE)
-            ).all()
-
-            for old in old_logs:
-                session.delete(old)
-
-            session.commit()
-
+        store_log_line_in_db(
+            service_name=service_name,
+            message=message,
+            source="core.logs",
+        )
     except Exception:
-        pass
+        # Swallow errors to avoid breaking log streaming callers
+        logger.exception("Failed to store log line for %s", service_name)
