@@ -479,6 +479,8 @@
 
                 activeTab: 'services',
                 searchQuery: '',
+                loadingAnalytics: false,
+                analyticsError: null,
 
                 async init() {
 
@@ -540,20 +542,26 @@
                 },
 
                 async fetchAnalytics() {
-                    try {
-                        const res = await fetch("/analytics/unstable-services");
-                        this.analytics.unstable_services = await res.json();
+    this.loadingAnalytics = true;
+    this.analyticsError = null;
 
-                        // auto-select first service
-                        if (this.analytics.unstable_services.length > 0) {
-                            const first = this.analytics.unstable_services[0].service_name;
-                            this.selectServiceAnalytics(first);
-                        }
+    try {
+        const res = await fetch("/analytics/unstable-services");
+        this.analytics.unstable_services = await res.json();
 
-                    } catch (err) {
-                        console.error("Analytics load failed", err);
-                    }
-                },
+        if (this.analytics.unstable_services.length > 0) {
+            const first = this.analytics.unstable_services[0].service_name;
+            await this.selectServiceAnalytics(first);
+        }
+
+    } catch (err) {
+        console.error("Analytics load failed", err);
+        this.analyticsError = "Failed to load analytics";
+    } finally {
+        this.loadingAnalytics = false;
+    }
+},
+
                 downloadLogs() {
                     let url = `/logs/download?service_name=${this.selectedService}`;
                     window.location = url;
