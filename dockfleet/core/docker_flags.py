@@ -14,23 +14,19 @@ def build_resource_flags(service_config: dict) -> list[str]:
     return flags
 
 
-def build_env_flags(config):
+def build_env_flags(service_config):
     flags = []
-    env = config.get("env") or {}
+    env = service_config.get("environment") or service_config.get("env")
 
-    if isinstance(env, list):
-        env_dict = {}
+    if isinstance(env, dict):
+        for key, value in env.items():
+            flags.extend(["-e", f"{key}={value}"])
+
+    elif isinstance(env, list):
         for item in env:
-            if "=" in item:
-                k, v = item.split("=", 1)
-                env_dict[k] = v
-        env = env_dict
-
-    for key, value in env.items():
-        flags.extend(["-e", f"{key}={value}"])
+            flags.extend(["-e", item])
 
     return flags
-
 
 def build_port_flags(config):
     flags = []

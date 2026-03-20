@@ -149,7 +149,7 @@ class Orchestrator:
         try:
             self.docker.remove_container(container_name)
 
-            # ✅ Convert to dict safely
+            # Convert to dict safely
             if isinstance(svc, dict):
                 service_config = svc
             elif hasattr(svc, "model_dump"):
@@ -157,15 +157,15 @@ class Orchestrator:
             else:
                 service_config = vars(svc)
 
-            # ✅ VALIDATION
+            #  VALIDATION
             if not service_config.get("image"):
                 raise ValueError(f"Service '{name}' missing 'image'")
 
-            # ✅ DEFAULTS (fixes NoneType error)
+            #  DEFAULTS (fixes NoneType error)
             service_config["env"] = service_config.get("env") or {}
             service_config["ports"] = service_config.get("ports") or []
 
-            # 🔥 FIX env (list → dict)
+            #  FIX env (list → dict)
             if isinstance(service_config["env"], list):
                 env_dict = {}
                 for item in service_config["env"]:
@@ -174,20 +174,20 @@ class Orchestrator:
                         env_dict[k] = v
                 service_config["env"] = env_dict
 
-            # 🔥 FIX ports (dict → list)
+            #  FIX ports (dict → list)
             if isinstance(service_config["ports"], dict):
                 service_config["ports"] = [
                     f"{k}:{v}" for k, v in service_config["ports"].items()
                 ]
 
-            # ✅ Build flags safely
+            #  Build flags safely
             port_flags = build_port_flags(service_config)
             env_flags = build_env_flags(service_config)
             resource_flags = build_resource_flags(service_config)
 
             docker_flags = port_flags + env_flags + resource_flags
 
-            # ✅ Always use service_config (not svc)
+            #  Always use service_config (not svc)
             self.docker.run_container(
                 image=service_config.get("image"),
                 name=container_name,
