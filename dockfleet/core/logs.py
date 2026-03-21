@@ -6,6 +6,7 @@ from typing import Optional
 from dockfleet.core.orchestrator import get_container_name
 from dockfleet.health.logs import store_log_line as store_log_line_in_db
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,16 +17,18 @@ async def stream_container_logs(service_name: str):
     # Check container exists first
     try:
         result = subprocess.run(
-            ["docker", "ps", "-a", "--filter", f"name={container}", "--format", "{{.Names}}"],
+            ["docker", "ps", "-a", "--format", "{{.Names}}"],
             capture_output=True,
             text=True,
             timeout=5,
         )
-        if not result.stdout.strip():
-            yield f'data: {{ "error": "Container {container} not found" }}\n\n'
+        names = {line.strip() for line in result.stdout.splitlines() if line.strip()}
+        if container not in names:
+            # send error as normal SSE line so frontend log viewer me visible ho
+            yield f'data: [dockfleet] container "{container}" not found\n\n'
             return
-    except Exception:
-        yield f'data: {{ "error": "Failed to check container {container}" }}\n\n'
+    except Exception as exc:
+        yield f"data: [dockfleet] failed to check container {container}: {exc}\n\n"
         return
 
     # Stream logs with tail=100, follow
@@ -68,7 +71,6 @@ async def stream_container_logs(service_name: str):
         logger.info("Logs stream for %s cleaned up", container)
 
 
-# backward compatibility for old sync callers/tests
 def stream_logs(service_name: str):
     """Sync wrapper: returns an iterator of plain log lines (no SSE formatting)."""
     container = f"dockfleet_{service_name}"
