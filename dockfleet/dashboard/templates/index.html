@@ -377,49 +377,114 @@
             </div>
         </div>
 
-        <!-- ANALYTICS TAB -->
-        <div x-show="activeTab === 'analytics'" class="mt-12">
-            <template x-if="!loadingAnalytics && analytics.unstable_services.length === 0">
-                <p class="text-center text-gray-400">No analytics data available</p>
-            </template>
+        <!-- MAIN CONTENT WRAPPER -->
+<div x-show="!loadingAnalytics && analytics.unstable_services.length > 0"
+     class="space-y-8">
 
-            <div x-show="loadingAnalytics" class="text-center text-blue-400 mb-4">
-                Loading analytics...
-            </div>
+    <!-- HEADER -->
+    <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold">Analytics</h2>
+        <span class="text-sm text-gray-400">Last 24 hours</span>
+    </div>
 
-            <div x-show="analyticsError" class="text-center text-red-400 mb-4">
-                <span x-text="analyticsError"></span>
-            </div>
+    <!-- 🧠 INSIGHT -->
+    <div class="bg-gradient-to-r from-indigo-500 to-blue-600 text-white p-6 rounded-2xl shadow flex justify-between items-center">
+        <div class="space-y-1">
+            <p class="text-sm opacity-80">System Insight</p>
 
-            <h2 class="text-2xl font-bold mb-6">Analytics</h2>
+            <p class="text-lg font-semibold leading-snug">
+                <span x-text="analytics.unstable_services[0].service_name"></span>
+                restarted
+                <span x-text="analytics.unstable_services[0].restarts"></span>
+                times
+            </p>
 
-            <div class="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-xl mb-6">
-                <template x-if="analytics.unstable_services.length > 0">
-                    <p>
-                        <strong x-text="analytics.unstable_services[0].service_name"></strong>
-                        restarted
-                        <strong x-text="analytics.unstable_services[0].restarts"></strong>
-                        times in last 24h.
-                    </p>
-                </template>
-            </div>
+            <p class="text-sm"
+               :class="{
+                    'text-green-200': analytics.unstable_services[0].restarts <= 1,
+                    'text-yellow-200': analytics.unstable_services[0].restarts <= 4 && analytics.unstable_services[0].restarts > 1,
+                    'text-red-200': analytics.unstable_services[0].restarts > 4
+               }">
+                <span x-show="analytics.unstable_services[0].restarts <= 1">✅ Stable</span>
+                <span x-show="analytics.unstable_services[0].restarts > 1 && analytics.unstable_services[0].restarts <= 4">⚠️ Moderate</span>
+                <span x-show="analytics.unstable_services[0].restarts > 4">🚨 Critical</span>
+            </p>
+        </div>
 
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow mb-6">
-                <h3 class="text-lg font-semibold mb-3">Most Unstable Services</h3>
+        <div class="text-4xl">⚡</div>
+    </div>
+
+    <!-- 📊 KPI -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
+            <p class="text-sm text-gray-400 mb-1">Total Restarts</p>
+            <p class="text-3xl font-bold text-blue-500"
+               x-text="analytics.total_restarts || 0"></p>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
+            <p class="text-sm text-gray-400 mb-1">Unstable Services</p>
+            <p class="text-3xl font-bold text-red-500"
+               x-text="analytics.unstable_services.length"></p>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
+            <p class="text-sm text-gray-400 mb-1">Most Affected</p>
+            <p class="text-lg font-semibold"
+               x-text="analytics.unstable_services[0].service_name"></p>
+        </div>
+
+    </div>
+
+    <!-- 📈 CHARTS (FIXED HEIGHT + BALANCED GRID) -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+        <!-- Unstable -->
+        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm flex flex-col">
+            <h3 class="text-md font-semibold mb-4">Most Unstable</h3>
+            <div class="h-64">
                 <canvas id="unstableChart"></canvas>
             </div>
+        </div>
 
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow mb-6">
-                <h3 class="text-lg font-semibold mb-3">Restart Trend</h3>
+        <!-- Trend -->
+        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm flex flex-col">
+            <h3 class="text-md font-semibold mb-4">Restart Trend</h3>
+            <div class="h-64">
                 <canvas id="restartChart"></canvas>
             </div>
+        </div>
 
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow">
-                <h3 class="text-lg font-semibold mb-3">Failure Breakdown</h3>
+        <!-- Pie (NOW SAME SIZE) -->
+        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm flex flex-col">
+            <h3 class="text-md font-semibold mb-4">Failure Breakdown</h3>
+            <div class="h-64">
                 <canvas id="failureChart"></canvas>
             </div>
         </div>
+
     </div>
+
+    <!-- 🔁 ACTIVITY -->
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm">
+        <h3 class="text-lg font-semibold mb-4">Recent Healing Actions</h3>
+
+        <ul class="space-y-3 text-sm">
+            <template x-for="event in analytics.recent_events || []" :key="event.id">
+                <li class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2">
+                    <span x-text="event.message"></span>
+                    <span class="text-xs text-gray-400" x-text="event.time"></span>
+                </li>
+            </template>
+
+            <template x-if="!analytics.recent_events || analytics.recent_events.length === 0">
+                <li class="text-gray-400">No recent healing activity</li>
+            </template>
+        </ul>
+    </div>
+
+</div>
 
     <script>
 function dashboard() {
